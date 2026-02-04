@@ -127,7 +127,61 @@ gcloud billing budgets update "$BUDGET_ID" \
 
 ## 5. Testing & Maintenance
 
-### End-to-End Simulation
+### Validation
+
+#### Verify pub/sub notifications rule is present
+```sh
+gcloud billing budgets describe "$BUDGET_ID" \
+--billing-account "$BILLING_ACCOUNT_ID" \
+--project "$GCP_PROJECT_ID" \
+--format "json" | jq -r ".notificationsRule"
+```
+```json
+{
+  "pubsubTopic": "projects/testproj-05sept2022/topics/billing-alerts",
+  "schemaVersion": "1.0"
+}
+```
+
+#### Verify Billing Service Account can publish to Pub/Sub
+```sh
+# billing-budget-alert@system.gserviceaccount.com needs "roles/pubsub.publisher"
+cloud pubsub topics get-iam-policy "$GCP_PUBSUB_TOPIC_NAME" \
+--project "$GCP_PROJECT_ID" \
+--format "json"
+```
+```json
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
+      ],
+      "role": "roles/pubsub.publisher"
+    }
+  ],
+  "etag": "BwZKBeNzwck=",
+  "version": 1
+}
+```
+
+#### Verify Project Number is set inside the running container as an environment varialbe
+```sh
+gcloud run services describe "$GCP_CR_SERVICE_NAME" \
+--project "$GCP_PROJECT_ID" \
+--region "$GCP_REGION" \
+--format "json" | jq -r ".spec.template.spec.containers[0].env"
+```
+```json
+[
+  {
+    "name": "GCP_PROJECT_NUMBER",
+    "value": "691569880619"
+  }
+]
+```
+
+### End-to-End Simulation Test (Warning!!! This will disabled billing if successful!)
 
 ```sh
 gcloud pubsub topics publish "$GCP_PUBSUB_TOPIC_NAME" \
@@ -141,9 +195,13 @@ gcloud pubsub topics publish "$GCP_PUBSUB_TOPIC_NAME" \
 # Check Status
 gcloud billing projects describe "$GCP_PROJECT_ID" --project "$GCP_PROJECT_ID"
 
+# Manual Unlink
+gcloud billing projects unlink "$GCP_PROJECT_ID" --project "$GCP_PROJECT_ID"
+
 # Manual Relink
 gcloud billing projects link "$GCP_PROJECT_ID" --project "$GCP_PROJECT_ID" --billing-account "$BILLING_ACCOUNT_ID"
 
 # Read Service Logs
 gcloud alpha run services logs read "$GCP_CR_SERVICE_NAME" --project "$GCP_PROJECT_ID" --region "$GCP_REGION"
 ```
+
