@@ -181,7 +181,7 @@ gcloud run services describe "$GCP_CR_SERVICE_NAME" \
 ]
 ```
 
-### End-to-End Simulation Test (Warning!!! This will disabled billing if successful!)
+### End-to-End Simulation Test (Warning!!! This will disable billing if successful!)
 
 ```sh
 gcloud pubsub topics publish "$GCP_PUBSUB_TOPIC_NAME" \
