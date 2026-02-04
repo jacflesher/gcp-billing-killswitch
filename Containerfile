@@ -1,9 +1,10 @@
-# Use the Google Cloud SDK image to have 'gcloud' ready
-FROM google/cloud-sdk:slim
+FROM --platform=linux/amd64 golang:1.25-alpine as builder
+WORKDIR /app
+COPY ./script.go .
+RUN go mod init billing-killswitch && go mod tidy
+RUN go build -o go_script script.go
 
-# Copy the script into the container
-COPY script.sh /script.sh
-RUN chmod +x /script.sh
-
-# Run the script when the job starts
-ENTRYPOINT ["/bin/bash", "/script.sh"]
+FROM --platform=linux/amd64 alpine:3.18
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /app/go_script /go_script
+CMD ["/go_script"]
